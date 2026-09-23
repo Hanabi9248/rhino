@@ -23,6 +23,7 @@ import javax.script.SimpleScriptContext;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mozilla.javascript.Undefined;
 import org.mozilla.javascript.engine.RhinoScriptEngine;
 import org.mozilla.javascript.engine.RhinoScriptEngineFactory;
 import org.mozilla.javascript.testutils.TestSource;
@@ -317,5 +318,46 @@ public class ScriptEngineTest {
         engine.eval("var copy = file;");
         assertSame(file, engine.get("copy"));
         assertSame(file, globals.get("file"));
+    }
+
+    @Test
+    public void javascriptBindingRoundTrip() throws ScriptException {
+        checkJavascriptBindingRoundTrip(false, false);
+    }
+
+    @Test
+    public void javascriptBindingRoundTripInterpreted() throws ScriptException {
+        checkJavascriptBindingRoundTrip(true, false);
+    }
+
+    @Test
+    public void compiledJavascriptBindingRoundTrip() throws ScriptException {
+        checkJavascriptBindingRoundTrip(false, true);
+    }
+
+    @Test
+    public void compiledJavascriptBindingRoundTripInterpreted() throws ScriptException {
+        checkJavascriptBindingRoundTrip(true, true);
+    }
+
+    private void checkJavascriptBindingRoundTrip(boolean interpreted, boolean compiled)
+            throws ScriptException {
+        engine.put(RhinoScriptEngine.INTERPRETED_MODE, interpreted);
+        String script =
+                "var missing = undefined; var date = new Date(0);"
+                        + "var object = {value: 1}; var array = [2];"
+                        + "var fn = function() { return 3; };";
+        if (compiled) {
+            cEngine.compile(script).eval();
+        } else {
+            engine.eval(script);
+        }
+        assertSame(Undefined.instance, engine.get("missing"));
+        assertEquals(
+                Boolean.TRUE,
+                engine.eval(
+                        "missing === undefined && typeof missing === 'undefined'"
+                                + " && date instanceof Date && date.getTime() === 0"
+                                + " && object.value === 1 && array[0] === 2 && fn() === 3"));
     }
 }
